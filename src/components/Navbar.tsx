@@ -3,7 +3,7 @@
 import { useSession, signOut } from "next-auth/react";
 import { useRouter, usePathname } from "next/navigation";
 import { Button } from "./ui/button";
-import { BookOpen, PlusCircle, Home, LogOut } from "lucide-react";
+import { BookOpen, PlusCircle, LogOut } from "lucide-react";
 
 export default function Navbar() {
   const { data: session } = useSession();

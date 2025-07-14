@@ -92,7 +92,7 @@ Make it look like a professional children's book cover that would stand out on a
     const fileName = `cover-${Date.now()}-${Math.random().toString(36).substring(7)}.png`;
 
     // Upload to Supabase storage
-    const { data, error } = await supabase.storage
+    const {  error } = await supabase.storage
       .from('cover-images')
       .upload(fileName, imageBuffer, {
         contentType: 'image/png',
