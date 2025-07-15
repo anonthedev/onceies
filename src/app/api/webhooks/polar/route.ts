@@ -1,4 +1,3 @@
-import { NextRequest, NextResponse } from 'next/server';
 import { Webhooks } from '@polar-sh/nextjs';
 import { createClient } from '@supabase/supabase-js';
 
@@ -30,7 +29,8 @@ export const POST = Webhooks({
   },
 });
 
-async function handleSuccessfulPayment(payload: any) {
+//@ts-expect-error - Polar types are not fully typed
+async function handleSuccessfulPayment(payload) {
   const { data } = payload;
   console.log(data)
   

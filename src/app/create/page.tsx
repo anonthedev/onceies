@@ -11,7 +11,6 @@ import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { checkStoryLimit, UsageStatus, shouldShowUpgradePrompt, shouldShowUsageWarning } from "@/lib/usage-tracking";
-import PlanStatus from "@/components/PlanStatus";
 import UpgradePrompt from "@/components/UpgradePrompt";
 
 interface StoryData {

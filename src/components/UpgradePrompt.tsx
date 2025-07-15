@@ -75,7 +75,7 @@ export default function UpgradePrompt({
         <AlertDescription className="flex items-center justify-between">
           <div>
             <span className="font-medium text-orange-800">
-              You've reached your story limit!
+              You&apos;ve reached your story limit!
             </span>
             <span className="text-orange-700 ml-2">
               Upgrade to Pro for unlimited stories.
@@ -111,7 +111,7 @@ export default function UpgradePrompt({
           Unlock Unlimited Stories
         </CardTitle>
         <p className="text-gray-600 mt-2">
-          You've reached your free story limit. Upgrade to continue creating amazing stories!
+          You&apos;ve reached your free story limit. Upgrade to continue creating amazing stories!
         </p>
       </CardHeader>
       <CardContent className="p-6">

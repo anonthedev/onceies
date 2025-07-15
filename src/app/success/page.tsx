@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,7 +10,7 @@ import { CheckCircle, Crown, Sparkles, BookOpen, ArrowRight } from "lucide-react
 import { getUserPlanDetails, PlanDetails } from "@/lib/usage-tracking";
 import { toast } from "sonner";
 
-export default function SuccessPage() {
+function SuccessPageContent() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -19,28 +19,23 @@ export default function SuccessPage() {
   const [error, setError] = useState<string | null>(null);
   const [sessionRetryCount, setSessionRetryCount] = useState(0);
 
-  // Check if this is a legitimate redirect from payment provider
   const hasCustomerSessionToken = searchParams.get('customer_session_token');
 
   useEffect(() => {
     const fetchPlanDetails = async () => {
-      // If we're still loading the session, wait a bit longer
       if (status === 'loading') {
         return;
       }
 
-      // If no session but we have a customer token, give it more time to load
       if (!session?.user?.id && hasCustomerSessionToken && sessionRetryCount < 3) {
         console.log(`Waiting for session to load, retry ${sessionRetryCount + 1}/3...`);
         setSessionRetryCount(prev => prev + 1);
-        // Wait 2 seconds before retrying
         setTimeout(() => {
           fetchPlanDetails();
         }, 2000);
         return;
       }
 
-      // If still no session after retries, show error
       if (!session?.user?.id) {
         setError("Please sign in to continue");
         setLoading(false);
@@ -48,7 +43,6 @@ export default function SuccessPage() {
       }
 
       try {
-        // If supabaseAccessToken is not available, try to fetch plan details via API
         if (!session?.supabaseAccessToken) {
           console.log("No supabase token, fetching via API...");
           const response = await fetch('/api/user/plan');
@@ -56,7 +50,6 @@ export default function SuccessPage() {
             const details = await response.json();
             setPlanDetails(details);
             
-            // Show success message if user is now on pro plan
             if (details.plan === 'pro') {
               toast.success("Welcome to Pro! You now have unlimited story generation.");
             }
@@ -67,7 +60,6 @@ export default function SuccessPage() {
           const details = await getUserPlanDetails(session.user.id, session.supabaseAccessToken);
           setPlanDetails(details);
           
-          // Show success message if user is now on pro plan
           if (details.plan === 'pro') {
             toast.success("Welcome to Pro! You now have unlimited story generation.");
           }
@@ -161,7 +153,7 @@ export default function SuccessPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-4">
                 <h3 className="font-semibold text-gray-900 mb-3">
-                  What's Included:
+                  What&apos;s Included:
                 </h3>
                 <div className="space-y-2">
                   <div className="flex items-center space-x-2">
@@ -236,5 +228,24 @@ export default function SuccessPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+function LoadingFallback() {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 flex items-center justify-center">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+        <p className="text-gray-600">Loading...</p>
+      </div>
+    </div>
+  );
+}
+
+export default function SuccessPage() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <SuccessPageContent />
+    </Suspense>
   );
 } 

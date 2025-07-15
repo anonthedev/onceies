@@ -36,11 +36,11 @@ export async function POST(req: NextRequest) {
     }
 
     // Create age-appropriate story prompt
-    const ageGuidelines = {
-      "0-2": "Use very simple words, short sentences (3-5 words), repetitive sounds, and focus on basic concepts like colors, shapes, and familiar objects. Include lots of sensory descriptions.",
-      "3-5": "Use simple vocabulary, short paragraphs, and clear moral lessons. Include interactive elements and predictable patterns. Focus on friendship, sharing, and basic emotions.",
-      "6-8": "Use more complex vocabulary while remaining accessible, longer paragraphs, and include problem-solving elements. Can include mild adventure and more detailed character development."
-    };
+    // const ageGuidelines = {
+    //   "0-2": "Use very simple words, short sentences (3-5 words), repetitive sounds, and focus on basic concepts like colors, shapes, and familiar objects. Include lots of sensory descriptions.",
+    //   "3-5": "Use simple vocabulary, short paragraphs, and clear moral lessons. Include interactive elements and predictable patterns. Focus on friendship, sharing, and basic emotions.",
+    //   "6-8": "Use more complex vocabulary while remaining accessible, longer paragraphs, and include problem-solving elements. Can include mild adventure and more detailed character development."
+    // };
 
     const prompt = `Write a fun, adventurous children's story in the style of *Geronimo Stilton*. The story should be energetic, filled with quirky characters, humorous narration, and expressive language. Use lots of vivid imagery, exciting sound words (like ZOOM! SPLAT! WHOOSH!), and playful fonts or emphasis where appropriate (like THIS or *that*). The narrator can break the fourth wall and be a bit dramatic or clumsy, like Geronimo himself.
 

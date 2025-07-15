@@ -8,7 +8,6 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { supabaseClient } from "@/lib/supabase";
 import { checkStoryLimit, UsageStatus, shouldShowUpgradePrompt, shouldShowUsageWarning } from "@/lib/usage-tracking";
-import PlanStatus from "./PlanStatus";
 import UpgradePrompt from "./UpgradePrompt";
 
 interface Story {
