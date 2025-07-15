@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { checkStoryLimit, UsageStatus, shouldShowUpgradePrompt, shouldShowUsageWarning } from "@/lib/usage-tracking";
+import PlanStatus from "@/components/PlanStatus";
+import UpgradePrompt from "@/components/UpgradePrompt";
 
 interface StoryData {
   title: string;
@@ -31,9 +34,43 @@ export default function CreateStory() {
   const [generatedStory, setGeneratedStory] = useState<string>("");
   const [coverImageUrl, setCoverImageUrl] = useState<string>("");
   const [storyId, setStoryId] = useState<string>("");
+  const [usageStatus, setUsageStatus] = useState<UsageStatus | null>(null);
+  const [usageLoading, setUsageLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchUsageStatus = async () => {
+      if (!session?.supabaseAccessToken || !session?.user?.id) {
+        setUsageLoading(false);
+        return;
+      }
+
+      try {
+        const status = await checkStoryLimit(session.user.id, session.supabaseAccessToken);
+        setUsageStatus(status);
+      } catch (error) {
+        console.error('Error fetching usage status:', error);
+        toast.error('Failed to load usage status');
+      } finally {
+        setUsageLoading(false);
+      }
+    };
+
+    fetchUsageStatus();
+  }, [session]);
 
   const handleInputChange = (field: keyof StoryData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const refreshUsageStatus = async () => {
+    if (!session?.supabaseAccessToken || !session?.user?.id) return;
+
+    try {
+      const status = await checkStoryLimit(session.user.id, session.supabaseAccessToken);
+      setUsageStatus(status);
+    } catch (error) {
+      console.error('Error refreshing usage status:', error);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -56,6 +93,11 @@ export default function CreateStory() {
       });
 
       if (!storyResponse.ok) {
+        const errorData = await storyResponse.json();
+        if (storyResponse.status === 403 && errorData.needsUpgrade) {
+          toast.error("You've reached your story generation limit. Please upgrade to continue.");
+          return;
+        }
         throw new Error("Failed to generate story");
       }
 
@@ -85,6 +127,9 @@ export default function CreateStory() {
       setCoverImageUrl(imageResult.imageUrl);
 
       toast.success("Story and cover image generated successfully!");
+
+      // Refresh usage status after successful generation
+      await refreshUsageStatus();
 
     } catch (error) {
       console.error("Error generating story:", error);
@@ -118,8 +163,20 @@ export default function CreateStory() {
         <div className="max-w-4xl mx-auto space-y-6">
           <div className="text-center">
             <h1 className="text-4xl font-bold text-gray-900 mb-2">Create New Story</h1>
-            <p className="text-gray-600">Welcome, {session?.user?.email}</p>
+            {/* <p className="text-gray-600">Welcome, {session?.user?.name}</p> */}
           </div>
+
+          {usageStatus && shouldShowUpgradePrompt(usageStatus) && (
+            <div className="flex justify-center">
+              <UpgradePrompt variant="inline" className="max-w-2xl" />
+            </div>
+          )}
+
+          {usageStatus && shouldShowUsageWarning(usageStatus) && !shouldShowUpgradePrompt(usageStatus) && (
+            <div className="flex justify-center">
+              <UpgradePrompt variant="banner" className="max-w-2xl" />
+            </div>
+          )}
 
           <Card className="shadow-lg">
             <CardHeader>
@@ -188,9 +245,12 @@ export default function CreateStory() {
                 <Button 
                   type="submit" 
                   className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
-                  disabled={isGenerating}
+                  disabled={isGenerating || usageLoading || (usageStatus ? !usageStatus.canGenerate : false)}
                 >
-                  {isGenerating ? "Creating Your Story..." : "Generate Story & Cover"}
+                  {isGenerating ? "Creating Your Story..." : 
+                   usageLoading ? "Loading..." :
+                   (usageStatus && !usageStatus.canGenerate) ? "Upgrade to Generate Stories" : 
+                   "Generate Story & Cover"}
                 </Button>
               </form>
             </CardContent>

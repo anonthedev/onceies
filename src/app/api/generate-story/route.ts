@@ -2,6 +2,7 @@ import OpenAI from "openai";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { supabaseClient } from "@/lib/supabase";
+import { checkStoryLimit, incrementStoryCount } from "@/lib/usage-tracking";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -22,6 +23,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
+    // Check story generation limit
+    const usageStatus = await checkStoryLimit(session.user.id!, session.supabaseAccessToken);
+    
+    if (!usageStatus.canGenerate) {
+      return NextResponse.json({ 
+        error: "Story generation limit reached", 
+        plan: usageStatus.plan,
+        remaining: usageStatus.remaining,
+        needsUpgrade: true
+      }, { status: 403 });
+    }
+
     // Create age-appropriate story prompt
     const ageGuidelines = {
       "0-2": "Use very simple words, short sentences (3-5 words), repetitive sounds, and focus on basic concepts like colors, shapes, and familiar objects. Include lots of sensory descriptions.",
@@ -29,23 +42,24 @@ export async function POST(req: NextRequest) {
       "6-8": "Use more complex vocabulary while remaining accessible, longer paragraphs, and include problem-solving elements. Can include mild adventure and more detailed character development."
     };
 
-    const prompt = `Write a children's story for ages ${ageGroup} with the following details:
+    const prompt = `Write a fun, adventurous children's story in the style of *Geronimo Stilton*. The story should be energetic, filled with quirky characters, humorous narration, and expressive language. Use lots of vivid imagery, exciting sound words (like ZOOM! SPLAT! WHOOSH!), and playful fonts or emphasis where appropriate (like THIS or *that*). The narrator can break the fourth wall and be a bit dramatic or clumsy, like Geronimo himself.
 
-Title: ${title}
-Characters: ${characters}
-Plot: ${plot}
-
-Guidelines for age ${ageGroup}: ${ageGuidelines[ageGroup as keyof typeof ageGuidelines]}
-
-Requirements:
-- Make it engaging and age-appropriate
-- Include a clear beginning, middle, and end
-- Incorporate a positive message or lesson
-- Use vivid, child-friendly descriptions
-- Keep it between 200-500 words depending on age group
-- Make it suitable for reading aloud
-
-Please write the complete story:`;
+    Story Details:
+    - Title: ${title}
+    - Main Characters: ${characters}
+    - Plot Summary: ${plot}
+    
+    Requirements:
+    - Story length should be around 800–1200 words
+    - Make it dynamic, fast-paced, and funny
+    - Include a clear beginning, middle, and end
+    - Incorporate light moral lessons like courage, friendship, or curiosity
+    - Add silly twists, dramatic expressions, and unexpected turns
+    - Narrator should have a strong, fun personality — possibly getting into trouble, overreacting, and learning something by the end
+    
+    Please write the full story, ready to be included in a children's book.
+    `;
+    
 
     // Generate story with OpenAI
     const completion = await openai.chat.completions.create({
@@ -60,7 +74,6 @@ Please write the complete story:`;
           content: prompt
         }
       ],
-      max_tokens: 1000,
       temperature: 0.8,
     });
 
@@ -90,6 +103,14 @@ Please write the complete story:`;
     if (error) {
       console.error('Supabase error:', error);
       return NextResponse.json({ error: "Failed to save story to database" }, { status: 500 });
+    }
+
+    // Increment story count for usage tracking
+    try {
+      await incrementStoryCount(session.user.id!, session.supabaseAccessToken);
+    } catch (countError) {
+      console.error('Error incrementing story count:', countError);
+      // Don't fail the request if count increment fails
     }
 
     return NextResponse.json({ 

@@ -7,6 +7,9 @@ import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { supabaseClient } from "@/lib/supabase";
+import { checkStoryLimit, UsageStatus, shouldShowUpgradePrompt, shouldShowUsageWarning } from "@/lib/usage-tracking";
+import PlanStatus from "./PlanStatus";
+import UpgradePrompt from "./UpgradePrompt";
 
 interface Story {
   id: string;
@@ -23,10 +26,13 @@ export default function Dashboard() {
   const router = useRouter();
   const [stories, setStories] = useState<Story[]>([]);
   const [loading, setLoading] = useState(true);
+  const [usageStatus, setUsageStatus] = useState<UsageStatus | null>(null);
+  const [usageLoading, setUsageLoading] = useState(true);
 
   useEffect(() => {
     if (session?.supabaseAccessToken) {
       fetchUserStories();
+      fetchUsageStatus();
     }
   }, [session]);
 
@@ -57,6 +63,20 @@ export default function Dashboard() {
     }
   };
 
+  const fetchUsageStatus = async () => {
+    try {
+      if (!session?.supabaseAccessToken || !session?.user?.id) return;
+
+      const status = await checkStoryLimit(session.user.id, session.supabaseAccessToken);
+      setUsageStatus(status);
+    } catch (error) {
+      console.error('Error fetching usage status:', error);
+      toast.error('Failed to load usage status');
+    } finally {
+      setUsageLoading(false);
+    }
+  };
+
   const handleStoryClick = (storyId: string) => {
     router.push(`/dashboard/${storyId}`);
   };
@@ -65,7 +85,7 @@ export default function Dashboard() {
     router.push('/create');
   };
 
-  if (loading) {
+  if (loading || usageLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 p-4">
         <div className="max-w-6xl mx-auto">
@@ -87,14 +107,34 @@ export default function Dashboard() {
             <p className="text-gray-600">Welcome back, {session?.user?.name}</p>
           </div>
 
-          <div className="flex justify-center">
+          {/* {usageStatus && (
+            <div className="flex justify-center">
+              <PlanStatus usage={usageStatus} variant="card" className="max-w-sm" />
+            </div>
+          )} */}
+
+          {usageStatus && shouldShowUpgradePrompt(usageStatus) && (
+            <div className="flex justify-center">
+              <UpgradePrompt variant="inline" className="max-w-2xl" />
+            </div>
+          )}
+
+          {/* Usage Warning for users close to limit */}
+          {usageStatus && shouldShowUsageWarning(usageStatus) && !shouldShowUpgradePrompt(usageStatus) && (
+            <div className="flex justify-center">
+              <UpgradePrompt variant="banner" className="max-w-2xl" />
+            </div>
+          )}
+
+          {/* <div className="flex justify-center">
             <Button 
               onClick={handleCreateNew}
               className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-8 py-3"
+              disabled={usageStatus ? !usageStatus.canGenerate : false}
             >
-              Create New Story
+              {usageStatus && !usageStatus.canGenerate ? 'Upgrade to Create Stories' : 'Create New Story'}
             </Button>
-          </div>
+          </div> */}
 
           {stories.length === 0 ? (
             <Card className="shadow-lg">
