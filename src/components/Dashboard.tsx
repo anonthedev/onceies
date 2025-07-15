@@ -9,21 +9,12 @@ import { useRouter } from "next/navigation";
 import { supabaseClient } from "@/lib/supabase";
 import { checkStoryLimit, UsageStatus, shouldShowUpgradePrompt, shouldShowUsageWarning } from "@/lib/usage-tracking";
 import UpgradePrompt from "./UpgradePrompt";
-
-interface Story {
-  id: string;
-  title: string;
-  age_group: string;
-  cover_image: string | null;
-  created_at: string;
-  characters: string;
-  plot: string;
-}
+import { StoryWithChapters } from "@/types/story";
 
 export default function Dashboard() {
   const { data: session } = useSession();
   const router = useRouter();
-  const [stories, setStories] = useState<Story[]>([]);
+  const [stories, setStories] = useState<StoryWithChapters[]>([]);
   const [loading, setLoading] = useState(true);
   const [usageStatus, setUsageStatus] = useState<UsageStatus | null>(null);
   const [usageLoading, setUsageLoading] = useState(true);
@@ -41,19 +32,49 @@ export default function Dashboard() {
 
       const supabase = supabaseClient(session.supabaseAccessToken);
       
-      const { data, error } = await supabase
+      // Fetch stories with their chapters
+      const { data: storiesData, error: storiesError } = await supabase
         .from('stories')
-        .select('id, title, age_group, cover_image, created_at, characters, plot')
+        .select('id, cover_image, created_at, user_id')
         .eq('user_id', session.user.id)
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching stories:', error);
+      if (storiesError) {
+        console.error('Error fetching stories:', storiesError);
         toast.error('Failed to load stories');
         return;
       }
 
-      setStories(data || []);
+      if (!storiesData || storiesData.length === 0) {
+        setStories([]);
+        return;
+      }
+
+      // Fetch chapters for each story
+      const storiesWithChapters: StoryWithChapters[] = [];
+      
+      for (const story of storiesData) {
+        const { data: chaptersData, error: chaptersError } = await supabase
+          .from('chapters')
+          .select('*')
+          .eq('story_id', story.id)
+          .order('chapter_number', { ascending: true });
+
+        if (chaptersError) {
+          console.error('Error fetching chapters:', chaptersError);
+          continue;
+        }
+
+        // Get the title from the first chapter or user input
+        const storyTitle = chaptersData?.[0]?.title || 'Untitled Story';
+        
+        storiesWithChapters.push({
+          ...story,
+          chapters: chaptersData || []
+        });
+      }
+
+      setStories(storiesWithChapters);
     } catch (error) {
       console.error('Error fetching stories:', error);
       toast.error('Failed to load stories');
@@ -155,43 +176,53 @@ export default function Dashboard() {
             </Card>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {stories.map((story) => (
-                <Card 
-                  key={story.id} 
-                  className="shadow-lg hover:shadow-xl transition-shadow cursor-pointer group"
-                  onClick={() => handleStoryClick(story.id)}
-                >
-                  <CardContent className="">
-                    <div className="aspect-square mb-4 overflow-hidden rounded-lg bg-gray-100">
-                      {story.cover_image ? (
-                        <img 
-                          src={story.cover_image} 
-                          alt={story.title}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-gray-400">
-                          <svg className="h-16 w-16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                          </svg>
-                        </div>
-                      )}
-                    </div>
-                    
-                    <h3 className="font-semibold text-lg text-gray-900 mb-2 line-clamp-2 group-hover:text-purple-600 transition-colors">
-                      {story.title}
-                    </h3>
-                    
-                    <div className="space-y-1 text-sm text-gray-600">
-                      <p>Age: {story.age_group} years</p>
-                      <p>Characters: {story.characters.substring(0, 50)}{story.characters.length > 50 ? '...' : ''}</p>
-                      <p className="text-xs text-gray-500">
-                        Created: {new Date(story.created_at).toLocaleDateString()}
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+              {stories.map((story) => {
+                const storyTitle = story.chapters.length > 0 ? 
+                  story.chapters[0].title.replace(/^Chapter \d+:\s*/, '') : 
+                  'Untitled Story';
+                
+                return (
+                  <Card 
+                    key={story.id} 
+                    className="shadow-lg hover:shadow-xl transition-shadow cursor-pointer group"
+                    onClick={() => handleStoryClick(story.id)}
+                  >
+                    <CardContent className="">
+                      <div className="aspect-square mb-4 overflow-hidden rounded-lg bg-gray-100">
+                        {story.cover_image ? (
+                          <img 
+                            src={story.cover_image} 
+                            alt={storyTitle}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-gray-400">
+                            <svg className="h-16 w-16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                          </div>
+                        )}
+                      </div>
+                      
+                      <h3 className="font-semibold text-lg text-gray-900 mb-2 line-clamp-2 group-hover:text-purple-600 transition-colors">
+                        {storyTitle}
+                      </h3>
+                      
+                      <div className="space-y-1 text-sm text-gray-600">
+                        <p>Chapters: {story.chapters.length}</p>
+                        {story.chapters.length > 0 && (
+                          <p className="text-xs text-gray-500 line-clamp-2">
+                            {story.chapters[0].content.substring(0, 80)}...
+                          </p>
+                        )}
+                        <p className="text-xs text-gray-500">
+                          Created: {new Date(story.created_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           )}
         </div>

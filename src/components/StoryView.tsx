@@ -16,20 +16,59 @@ import {
   BookOpenCheck,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
-
-interface StoryDetail {
-  id: string;
-  title: string;
-  age_group: string;
-  cover_image: string | null;
-  created_at: string;
-  characters: string;
-  plot: string;
-  story: string;
-}
+import { StoryWithChapters, Chapter } from "@/types/story";
 
 interface StoryNotFoundProps {
   onBack: () => void;
+}
+
+function splitStoryIntoPages(
+  chapters: Chapter[],
+  wordsPerPage: number = 125
+): string[] {
+  if (!chapters.length) return [];
+  
+  const pages: string[] = [];
+  let currentPage = "";
+  let currentWordCount = 0;
+  
+  for (const chapter of chapters) {
+    // If we have content on current page, start chapter on new page
+    if (currentPage.trim()) {
+      pages.push(currentPage.trim());
+      currentPage = "";
+      currentWordCount = 0;
+    }
+    
+    // Add chapter title
+    const chapterTitle = `# ${chapter.title}\n\n`;
+    currentPage += chapterTitle;
+    
+    // Split chapter content into words
+    const words = chapter.content.split(" ");
+    
+    for (const word of words) {
+      // If adding this word would exceed the limit and we have content, start new page
+      if (currentWordCount >= wordsPerPage && currentPage.trim()) {
+        pages.push(currentPage.trim());
+        currentPage = "";
+        currentWordCount = 0;
+      }
+      
+      currentPage += word + " ";
+      currentWordCount++;
+    }
+    
+    // Add some spacing after chapter content
+    currentPage += "\n\n";
+  }
+  
+  // Add the last page if it has content
+  if (currentPage.trim()) {
+    pages.push(currentPage.trim());
+  }
+  
+  return pages;
 }
 
 function StoryLoadingState() {
@@ -60,20 +99,7 @@ function StoryNotFound({ onBack }: StoryNotFoundProps) {
   );
 }
 
-function splitStoryIntoPages(
-  story: string,
-  wordsPerPage: number = 125
-): string[] {
-  const words = story.split(" ");
-  const pages: string[] = [];
 
-  for (let i = 0; i < words.length; i += wordsPerPage) {
-    const pageWords = words.slice(i, i + wordsPerPage);
-    pages.push(pageWords.join(" "));
-  }
-
-  return pages;
-}
 
 export default function StoryView() {
   const { data: session } = useSession();
@@ -81,7 +107,7 @@ export default function StoryView() {
   const params = useParams();
   const storyId = params.id as string;
 
-  const [story, setStory] = useState<StoryDetail | null>(null);
+  const [story, setStory] = useState<StoryWithChapters | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(0); // 0 = cover, 1+ = story pages
   const [storyPages, setStoryPages] = useState<string[]>([]);
@@ -94,8 +120,8 @@ export default function StoryView() {
   }, [session, storyId]);
 
   useEffect(() => {
-    if (story?.story) {
-      const pages = splitStoryIntoPages(story.story);
+    if (story?.chapters && story.chapters.length > 0) {
+      const pages = splitStoryIntoPages(story.chapters);
       setStoryPages(pages);
     }
   }, [story]);
@@ -106,20 +132,38 @@ export default function StoryView() {
 
       const supabase = supabaseClient(session.supabaseAccessToken);
 
-      const { data, error } = await supabase
+      // Fetch story
+      const { data: storyData, error: storyError } = await supabase
         .from("stories")
         .select("*")
         .eq("id", storyId)
         .single();
 
-      if (error) {
-        console.error("Error fetching story:", error);
+      if (storyError) {
+        console.error("Error fetching story:", storyError);
         toast.error("Story not found");
         router.push("/dashboard");
         return;
       }
 
-      setStory(data);
+      // Fetch chapters
+      const { data: chaptersData, error: chaptersError } = await supabase
+        .from("chapters")
+        .select("*")
+        .eq("story_id", storyId)
+        .order("chapter_number", { ascending: true });
+
+      if (chaptersError) {
+        console.error("Error fetching chapters:", chaptersError);
+        toast.error("Failed to load story chapters");
+        router.push("/dashboard");
+        return;
+      }
+
+      setStory({
+        ...storyData,
+        chapters: chaptersData || []
+      });
     } catch (error) {
       console.error("Error fetching story:", error);
       toast.error("Failed to load story");
@@ -165,30 +209,31 @@ export default function StoryView() {
     return <StoryNotFound onBack={handleBack} />;
   }
 
-  const renderCoverPage = () => (
-    <div className="h-full flex flex-col items-center justify-center  bg-gradient-to-br from-purple-100 to-blue-100">
-      {/* Cover Image */}
-      <div className="w-full h-full rounded-lg overflow-hidden shadow-2xl  bg-white">
-        {story.cover_image ? (
-          <img
-            src={story.cover_image}
-            alt={story.title}
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-gray-400 bg-gradient-to-br from-purple-200 to-blue-200">
-            <BookOpen className="h-16 w-16" />
-          </div>
-        )}
+  const renderCoverPage = () => {
+    const storyTitle = story?.chapters[0]?.title.replace(/^Chapter \d+:\s*/, '') || 'Untitled Story';
+    
+    return (
+      <div className="h-full flex flex-col items-center justify-center bg-gradient-to-br from-purple-100 to-blue-100">
+        {/* Cover Image */}
+        <div className="w-full h-full rounded-lg overflow-hidden shadow-2xl bg-white">
+          {story?.cover_image ? (
+            <img
+              src={story.cover_image}
+              alt={storyTitle}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 bg-gradient-to-br from-purple-200 to-blue-200">
+              <BookOpen className="h-16 w-16 mb-4" />
+              <h2 className="text-xl font-bold text-center text-purple-700 px-4">
+                {storyTitle}
+              </h2>
+            </div>
+          )}
+        </div>
       </div>
-{/* 
-      <div className="text-center space-y-4 max-w-md">
-        <h1 className="text-3xl font-bold text-gray-900 font-comic-neue">
-          {story.title}
-        </h1>
-      </div> */}
-    </div>
-  );
+    );
+  };
 
   const renderStoryPage = (pageIndex: number) => (
     <div className="relative h-full">
@@ -335,11 +380,11 @@ export default function StoryView() {
 
                   {/* Page content */}
                   <div className="ml-2  h-full">
-                    {isTwoPageView
-                      ? renderTwoPageSpread()
-                      : currentPage === 0
-                      ? renderCoverPage()
-                      : renderStoryPage(currentPage)}
+                                      {isTwoPageView
+                    ? renderTwoPageSpread()
+                    : currentPage === 0
+                    ? renderCoverPage()
+                    : renderStoryPage(currentPage)}
                   </div>
                 </CardContent>
               </Card>
@@ -377,6 +422,7 @@ export default function StoryView() {
                           ? "bg-purple-600"
                           : "bg-gray-300 hover:bg-gray-400"
                       }`}
+                      title={pageIndex === 0 ? "Cover" : `Page ${pageIndex}`}
                     />
                   );
                 }

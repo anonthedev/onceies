@@ -18,20 +18,29 @@ export async function POST(req: NextRequest) {
     // Check if user is authenticated
     const session = await auth();
     if (!session || !session.user || !session.supabaseAccessToken) {
-      return NextResponse.json({ error: "Unauthorized - Please sign in" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Unauthorized - Please sign in" },
+        { status: 401 }
+      );
     }
 
-    const { title, ageGroup, characters, plot } = await req.json();
+    const { title, ageGroup, characters, plot, storyId } = await req.json();
 
-    if (!title || !ageGroup || !characters || !plot) {
-      return NextResponse.json({ error: "Missing required story details" }, { status: 400 });
+    if (!title || !ageGroup || !characters || !plot || !storyId) {
+      return NextResponse.json(
+        { error: "Missing required story details or storyId" },
+        { status: 400 }
+      );
     }
 
     // Create age-appropriate and engaging cover image prompt
     const ageStyles = {
-      "0-2": "bright primary colors, simple shapes, very cute and friendly style, board book illustration style, chunky characters",
-      "3-5": "vibrant colors, cartoon style, whimsical and magical, picture book illustration, friendly characters with big expressions",
-      "6-8": "detailed illustration, adventure book style, dynamic composition, chapter book cover style, more sophisticated character design"
+      "0-2":
+        "bright primary colors, simple shapes, very cute and friendly style, board book illustration style, chunky characters",
+      "3-5":
+        "vibrant colors, cartoon style, whimsical and magical, picture book illustration, friendly characters with big expressions",
+      "6-8":
+        "detailed illustration, adventure book style, dynamic composition, chapter book cover style, more sophisticated character design",
     };
 
     const coverPrompt = `Create a beautiful children's book cover illustration for "${title}".
@@ -41,7 +50,9 @@ Story details:
 - Plot: ${plot}
 - Age group: ${ageGroup}
 
-Style requirements for age ${ageGroup}: ${ageStyles[ageGroup as keyof typeof ageStyles]}
+Style requirements for age ${ageGroup}: ${
+      ageStyles[ageGroup as keyof typeof ageStyles]
+    }
 
 Cover design specifications:
 - Professional children's book cover illustration
@@ -65,7 +76,10 @@ Make it look like a professional children's book cover that would stand out on a
     });
 
     if (!result.data || result.data.length === 0) {
-      return NextResponse.json({ error: "No image generated" }, { status: 500 });
+      return NextResponse.json(
+        { error: "No image generated" },
+        { status: 500 }
+      );
     }
 
     const imageData = result.data[0];
@@ -74,7 +88,10 @@ Make it look like a professional children's book cover that would stand out on a
     if (imageData.url) {
       const imageResponse = await fetch(imageData.url);
       if (!imageResponse.ok) {
-        return NextResponse.json({ error: "Failed to fetch generated image" }, { status: 500 });
+        return NextResponse.json(
+          { error: "Failed to fetch generated image" },
+          { status: 500 }
+        );
       }
       imageBuffer = await imageResponse.arrayBuffer();
     } else if (imageData.b64_json) {
@@ -86,83 +103,67 @@ Make it look like a professional children's book cover that would stand out on a
       }
       imageBuffer = bytes.buffer;
     } else {
-      return NextResponse.json({ error: "No image data received from OpenAI" }, { status: 500 });
+      return NextResponse.json(
+        { error: "No image data received from OpenAI" },
+        { status: 500 }
+      );
     }
 
-    const fileName = `cover-${Date.now()}-${Math.random().toString(36).substring(7)}.png`;
+    const fileName = `cover-${Date.now()}-${Math.random()
+      .toString(36)
+      .substring(7)}.png`;
 
     // Upload to Supabase storage
-    const {  error } = await supabase.storage
-      .from('cover-images')
+    const { error } = await supabase.storage
+      .from("cover-images")
       .upload(fileName, imageBuffer, {
-        contentType: 'image/png',
-        cacheControl: '3600',
+        contentType: "image/png",
+        cacheControl: "3600",
       });
 
     if (error) {
-      console.error('Supabase upload error:', error);
-      return NextResponse.json({ error: "Failed to save image to storage" }, { status: 500 });
+      console.error("Supabase upload error:", error);
+      return NextResponse.json(
+        { error: "Failed to save image to storage" },
+        { status: 500 }
+      );
     }
 
     // Get the public URL
     const { data: publicUrlData } = supabase.storage
-      .from('cover-images')
+      .from("cover-images")
       .getPublicUrl(fileName);
 
     const imageUrl = publicUrlData.publicUrl;
 
-    // Create authenticated Supabase client to update or create story record
+    // Create authenticated Supabase client to update story record
     const userSupabase = supabaseClient(session.supabaseAccessToken);
 
-    // First, check if there's already a story record for this user with the same details
-    const { data: existingStory, error: findError } = await userSupabase
-      .from('stories')
-      .select('id')
-      .eq('user_id', session.user.id)
-      .eq('title', title)
-      .eq('characters', characters)
-      .eq('plot', plot)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single();
+    // Update the existing story record with cover image
+    const { error: updateError } = await userSupabase
+      .from("stories")
+      .update({ cover_image: imageUrl })
+      .eq("id", storyId)
+      .eq("user_id", session.user.id); // Ensure user owns this story
 
-    if (existingStory && !findError) {
-      // Update existing story with cover image
-      const { error: updateError } = await userSupabase
-        .from('stories')
-        .update({ cover_image: imageUrl })
-        .eq('id', existingStory.id);
-
-      if (updateError) {
-        console.error('Failed to update story with cover image:', updateError);
-      }
-    } else {
-      // Create new story record with cover image (story content will be added later)
-      const { error: insertError } = await userSupabase
-        .from('stories')
-        .insert({
-          title,
-          age_group: ageGroup,
-          plot,
-          characters,
-          cover_image: imageUrl,
-          story: '', // Will be updated when story is generated
-          user_id: session.user.id,
-        });
-
-      if (insertError) {
-        console.error('Failed to save story record:', insertError);
-      }
+    if (updateError) {
+      console.error("Failed to update story with cover image:", updateError);
+      return NextResponse.json(
+        { error: "Failed to update story with cover image" },
+        { status: 500 }
+      );
     }
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       success: true,
       imageUrl: imageUrl,
-      fileName: fileName 
+      fileName: fileName,
     });
-
   } catch (error) {
-    console.error('Image generation error:', error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    console.error("Image generation error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }
