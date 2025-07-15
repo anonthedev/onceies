@@ -110,7 +110,6 @@ export default function StoryView() {
         .from("stories")
         .select("*")
         .eq("id", storyId)
-        .eq("user_id", session.user.id)
         .single();
 
       if (error) {
