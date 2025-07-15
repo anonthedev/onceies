@@ -1,9 +1,8 @@
-import OpenAI from "openai";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { supabaseClient } from "@/lib/supabase";
 import { checkStoryLimit } from "@/lib/usage-tracking";
-import { StoryOutline, ChapterOutline } from "@/types/story";
+import { ChapterOutline } from "@/types/story";
 
 export async function POST(req: NextRequest) {
   try {

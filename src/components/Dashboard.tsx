@@ -64,9 +64,6 @@ export default function Dashboard() {
           console.error('Error fetching chapters:', chaptersError);
           continue;
         }
-
-        // Get the title from the first chapter or user input
-        const storyTitle = chaptersData?.[0]?.title || 'Untitled Story';
         
         storiesWithChapters.push({
           ...story,
