@@ -33,26 +33,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Create age-appropriate and engaging cover image prompt
-    const ageStyles = {
-      "0-2":
-        "bright primary colors, simple shapes, very cute and friendly style, board book illustration style, chunky characters",
-      "3-5":
-        "vibrant colors, cartoon style, whimsical and magical, picture book illustration, friendly characters with big expressions",
-      "6-8":
-        "detailed illustration, adventure book style, dynamic composition, chapter book cover style, more sophisticated character design",
-    };
-
     const coverPrompt = `Create a beautiful children's book cover illustration for "${title}".
 
 Story details:
 - Characters: ${characters}
 - Plot: ${plot}
 - Age group: ${ageGroup}
-
-Style requirements for age ${ageGroup}: ${
-      ageStyles[ageGroup as keyof typeof ageStyles]
-    }
 
 Cover design specifications:
 - Professional children's book cover illustration
@@ -68,10 +54,10 @@ Make it look like a professional children's book cover that would stand out on a
 
     // Generate image with OpenAI
     const result = await openai.images.generate({
-      model: "dall-e-3",
+      model: "dall-e-2",
       prompt: coverPrompt,
       size: "1024x1024",
-      quality: "standard",
+      // quality: "standard",
       n: 1,
     });
 

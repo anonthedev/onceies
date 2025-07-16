@@ -3,7 +3,8 @@ import { Comic_Neue } from "next/font/google";
 import "./globals.css";
 import SessionProvider from "@/components/providers/SessionProvider";
 import { Toaster } from "@/components/ui/sonner";
-import ConditionalNavigation from "@/components/ConditionalNavigation";
+import Navbar from "@/components/Navbar";
+
 
 const comicNeue = Comic_Neue({
   variable: "--font-comic-neue",
@@ -27,10 +28,10 @@ export default function RootLayout({
         className={`${comicNeue.variable} antialiased`}
       >
         <SessionProvider>
-          <ConditionalNavigation />
+          <Navbar />
           {children}
         </SessionProvider>
-        <Toaster />
+        <Toaster richColors duration={5000} />
       </body>
     </html>
   );

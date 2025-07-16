@@ -10,6 +10,7 @@ import { supabaseClient } from "@/lib/supabase";
 import { checkStoryLimit, UsageStatus, shouldShowUpgradePrompt, shouldShowUsageWarning } from "@/lib/usage-tracking";
 import UpgradePrompt from "./UpgradePrompt";
 import { StoryWithChapters } from "@/types/story";
+import Loader from "./Loader";
 
 export default function Dashboard() {
   const { data: session } = useSession();
@@ -103,16 +104,7 @@ export default function Dashboard() {
   };
 
   if (loading || usageLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 p-4">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading your stories...</p>
-          </div>
-        </div>
-      </div>
-    );
+    return <Loader message="Loading your stories..." />;
   }
 
   return (

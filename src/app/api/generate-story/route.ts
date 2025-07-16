@@ -49,6 +49,7 @@ export async function POST(req: NextRequest) {
       .from('stories')
       .insert({
         user_id: session.user.id,
+        user_input_id: userInputId,
       })
       .select()
       .single();

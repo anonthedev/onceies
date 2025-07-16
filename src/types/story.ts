@@ -39,6 +39,7 @@ export interface StoryOutline {
 
 export interface StoryWithChapters extends Story {
   chapters: Chapter[];
+  user_inputs?: UserInput;
 }
 
 export interface StoryFormData {
