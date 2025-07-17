@@ -46,7 +46,6 @@ export default function Pricing() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50 p-4">
       <div className="max-w-4xl mx-auto space-y-8">
-        {/* Header */}
         <div className="text-center space-y-4">
           <h1 className="text-4xl font-bold text-gray-900">Choose Your Plan</h1>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
@@ -54,7 +53,6 @@ export default function Pricing() {
           </p>
         </div>
 
-        {/* Pricing Cards */}
         <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
           {plans.map((plan) => (
             <Card
@@ -139,7 +137,7 @@ export default function Pricing() {
             <div className="bg-white rounded-lg p-6 shadow-sm">
               <h3 className="font-semibold text-gray-900 mb-2">Can I cancel my Pro subscription?</h3>
               <p className="text-gray-600">
-                There's no subscription to cancel! Pro is a one-time purchase with lifetime access.
+                There&apos;s no subscription to cancel! Pro is a one-time purchase with lifetime access.
               </p>
             </div>
           </div>

@@ -4,9 +4,8 @@ import { useSession, signOut } from "next-auth/react";
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Button } from "./ui/button";
-import { BookOpen, PlusCircle, LogOut, LogIn, DollarSign } from "lucide-react";
+import { BookOpen, PlusCircle, LogOut, LogIn } from "lucide-react";
 import { checkStoryLimit, type UsageStatus } from "@/lib/usage-tracking";
-import PlanStatus from "./PlanStatus";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import Link from "next/link";
 import {
@@ -103,7 +102,7 @@ export default function Navbar() {
               </Avatar>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={handleSignOut}>
                 <LogOut className="h-4 w-4" />
                 Sign Out
               </DropdownMenuItem>

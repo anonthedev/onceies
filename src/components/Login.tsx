@@ -25,7 +25,7 @@ export default function Login() {
       <Card className="w-full max-w-md shadow-lg">
         <CardHeader className="text-center">
           <CardTitle className="text-3xl font-bold text-gray-900 mb-2">Welcome to Onceies</CardTitle>
-          <p className="text-gray-600">Create magical children's stories with AI</p>
+          <p className="text-gray-600">Create magical children&apos;s stories with AI</p>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="text-center">
