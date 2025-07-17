@@ -31,7 +31,7 @@ export default function RootLayout({
           <Navbar />
           {children}
         </SessionProvider>
-        <Toaster richColors duration={5000} />
+        <Toaster richColors duration={5000} theme="light" />
       </body>
     </html>
   );

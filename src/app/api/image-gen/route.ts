@@ -15,7 +15,6 @@ const openai = new OpenAI({
 
 export async function POST(req: NextRequest) {
   try {
-    // Check if user is authenticated
     const session = await auth();
     if (!session || !session.user || !session.supabaseAccessToken) {
       return NextResponse.json(
@@ -41,6 +40,8 @@ Story details:
 - Age group: ${ageGroup}
 
 Cover design specifications:
+- Make it jolly and fun. cartoonish. have absolutely no text on the image. not even the title.
+- NO FOLDING LINES SHOULD BE THERE. ONLY ONE SIDE OF THE COVER.
 - Professional children's book cover illustration
 - Include the main characters prominently
 - Show a scene that captures the essence of the story
@@ -52,12 +53,11 @@ Cover design specifications:
 
 Make it look like a professional children's book cover that would stand out on a bookshelf.`;
 
-    // Generate image with OpenAI
     const result = await openai.images.generate({
-      model: "dall-e-2",
+      model: "dall-e-3",
       prompt: coverPrompt,
       size: "1024x1024",
-      // quality: "standard",
+      quality: "standard",
       n: 1,
     });
 
