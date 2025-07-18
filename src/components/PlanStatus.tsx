@@ -76,7 +76,7 @@ export default function PlanStatus({
 
   // Card variant (default)
   return (
-    <Card className={`${className}`}>
+    <Card className={`${className} m-0 p-0`}>
       <CardContent className="p-4">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center space-x-2">

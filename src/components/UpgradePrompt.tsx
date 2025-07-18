@@ -20,7 +20,6 @@ export default function UpgradePrompt({ variant = "modal", onUpgrade, className 
   const handleUpgrade = async () => {
     setIsLoading(true)
     try {
-      // You'll need to set your actual Polar product ID here
       const productId = process.env.NEXT_PUBLIC_POLAR_PRODUCT_ID
 
       if (!productId) {
@@ -28,7 +27,6 @@ export default function UpgradePrompt({ variant = "modal", onUpgrade, className 
         return
       }
 
-      // Create checkout session
       const response = await fetch("/api/checkout", {
         method: "POST",
         headers: {
@@ -43,7 +41,6 @@ export default function UpgradePrompt({ variant = "modal", onUpgrade, className 
 
       const { checkoutUrl } = await response.json()
 
-      // Redirect to Polar checkout
       window.location.href = checkoutUrl
 
       if (onUpgrade) {
@@ -82,8 +79,8 @@ export default function UpgradePrompt({ variant = "modal", onUpgrade, className 
   }
 
   return (
-    <Card className={`shadow-lg border-2 border-orange-200 ${className}`}>
-      <CardHeader className="text-center bg-orange-50">
+    <Card className={`m-0 p-0 shadow-lg border-2 border-orange-200 ${className}`}>
+      <CardHeader className="py-4 text-center bg-orange-50">
         <div className="flex items-center justify-center mb-2">
           <Crown className="h-8 w-8 text-orange-600 mr-2" />
           <Badge variant="secondary" className="bg-orange-600 text-white">

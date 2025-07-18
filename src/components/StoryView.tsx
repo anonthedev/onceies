@@ -17,10 +17,12 @@ import {
   RefreshCcw,
   Loader2,
   Sparkles,
+  Download,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import type { StoryWithChapters, Chapter } from "@/types/story";
 import Loader from "./Loader";
+import ExportModal from "./ExportModal";
 
 interface StoryNotFoundProps {
   onBack: () => void;
@@ -416,6 +418,16 @@ export default function StoryView() {
                   : `Page ${currentPage} of ${storyPages.length}`}
               </span>
             </div>
+
+            <ExportModal story={story} coverImage={coverImage}>
+              <Button
+                variant="outline"
+                className="flex items-center gap-2 bg-white/80 backdrop-blur-sm border-2 border-white/50 hover:bg-white hover:border-purple-300 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300"
+              >
+                <Download className="h-4 w-4" />
+                Export
+              </Button>
+            </ExportModal>
           </div>
         </div>
 
