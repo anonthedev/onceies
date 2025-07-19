@@ -26,6 +26,10 @@ export default function Dashboard() {
   const [usageLoading, setUsageLoading] = useState(true);
 
   useEffect(() => {
+    if (!session) {
+      router.push("/login");
+    }
+
     if (session?.supabaseAccessToken) {
       fetchUserStories();
       fetchUsageStatus();
