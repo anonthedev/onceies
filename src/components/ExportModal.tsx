@@ -16,12 +16,131 @@ import { FileText, Download, Loader2, BookOpen } from "lucide-react";
 import { toast } from "sonner";
 import type { StoryWithChapters } from "@/types/story";
 import { useSession } from "next-auth/react";
+import { marked } from "marked";
 
 interface ExportModalProps {
   story: StoryWithChapters;
   coverImage: string | null;
   children: React.ReactNode;
 }
+
+// Helper function to parse markdown and extract text with formatting info
+interface FormattedText {
+  text: string;
+  isBold: boolean;
+  isItalic: boolean;
+  isHeading: boolean;
+  headingLevel: number;
+}
+
+const parseMarkdownText = (markdownText: string): FormattedText[] => {
+  const tokens = marked.lexer(markdownText);
+  const formattedTexts: FormattedText[] = [];
+
+  for (const token of tokens) {
+    if (token.type === 'heading') {
+      formattedTexts.push({
+        text: token.text,
+        isBold: false,
+        isItalic: false,
+        isHeading: true,
+        headingLevel: token.depth
+      });
+    } else if (token.type === 'paragraph') {
+      // For paragraphs, just add the text content directly
+      // We'll handle inline formatting with a simpler approach
+      const text = token.text || token.raw || '';
+      if (text) {
+        formattedTexts.push({
+          text: text,
+          isBold: false,
+          isItalic: false,
+          isHeading: false,
+          headingLevel: 0
+        });
+      }
+    } else if (token.type === 'text') {
+      // Handle standalone text tokens
+      const text = token.text;
+      if (text) {
+        formattedTexts.push({
+          text: text,
+          isBold: false,
+          isItalic: false,
+          isHeading: false,
+          headingLevel: 0
+        });
+      }
+    }
+  }
+
+  return formattedTexts;
+};
+
+// Helper function to parse inline markdown formatting
+const parseInlineFormatting = (text: string): FormattedText[] => {
+  const formattedTexts: FormattedText[] = [];
+  const currentText = text;
+  let lastIndex = 0;
+  
+  // Find all formatting markers
+  const formattingRegex = /(\*\*([^*]+)\*\*)|(\*([^*]+)\*)|(__([^_]+)__)|(_([^_]+)_)/g;
+  let match;
+  
+  while ((match = formattingRegex.exec(currentText)) !== null) {
+    // Add text before the formatting
+    const beforeText = currentText.slice(lastIndex, match.index);
+    if (beforeText) {
+      formattedTexts.push({
+        text: beforeText,
+        isBold: false,
+        isItalic: false,
+        isHeading: false,
+        headingLevel: 0
+      });
+    }
+    
+    // Add the formatted text
+    const formattedText = match[2] || match[4] || match[6] || match[8];
+    const isBold = match[1] !== undefined || match[5] !== undefined;
+    const isItalic = match[3] !== undefined || match[7] !== undefined;
+    
+    formattedTexts.push({
+      text: formattedText,
+      isBold: isBold,
+      isItalic: isItalic,
+      isHeading: false,
+      headingLevel: 0
+    });
+    
+    lastIndex = match.index + match[0].length;
+  }
+  
+  // Add remaining text after formatting
+  const afterText = currentText.slice(lastIndex);
+  if (afterText) {
+    formattedTexts.push({
+      text: afterText,
+      isBold: false,
+      isItalic: false,
+      isHeading: false,
+      headingLevel: 0
+    });
+  }
+  
+  // If no formatting was found, add the entire text as normal
+  if (formattedTexts.length === 0) {
+    formattedTexts.push({
+      text: text,
+      isBold: false,
+      isItalic: false,
+      isHeading: false,
+      headingLevel: 0
+    });
+  }
+  
+  return formattedTexts;
+};
 
 export default function ExportModal({ story, coverImage, children }: ExportModalProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -49,8 +168,7 @@ export default function ExportModal({ story, coverImage, children }: ExportModal
       const pageHeight = pdf.internal.pageSize.getHeight();
       const margin = 25;
       const contentWidth = pageWidth - 2 * margin;
-      const lineHeight = 6;
-      const paragraphSpacing = 8;
+      const lineHeight = 8;
 
       let yPosition = margin;
 
@@ -112,53 +230,97 @@ export default function ExportModal({ story, coverImage, children }: ExportModal
       pdf.addPage();
       yPosition = margin;
 
-      // Add story content
-      pdf.setFontSize(12);
-      pdf.setFont("helvetica", "normal");
-
+      // Add story content with markdown formatting
       for (const chapter of story.chapters) {
-        // Add chapter title
-        pdf.setFontSize(18);
-        pdf.setFont("helvetica", "bold");
-        const chapterTitle = chapter.title;
-        const chapterTitleLines = splitTextToSize(pdf, chapterTitle, contentWidth);
+        // Parse and add chapter content with markdown formatting
+        const formattedContent = parseMarkdownText(chapter.content);
         
-        for (const line of chapterTitleLines) {
-          if (yPosition > pageHeight - margin - lineHeight) {
+        for (const formattedText of formattedContent) {
+          if (formattedText.isHeading) {
+            // Handle headings - start new page for any heading (chapter titles)
             pdf.addPage();
             yPosition = margin;
+            
+            const fontSize = Math.max(16, 24 - formattedText.headingLevel * 2);
+            pdf.setFontSize(fontSize);
+            pdf.setFont("helvetica", "bold");
+            
+            const textLines = splitTextToSize(pdf, formattedText.text, contentWidth);
+            for (const line of textLines) {
+              if (yPosition > pageHeight - margin - lineHeight) {
+                pdf.addPage();
+                yPosition = margin;
+              }
+              pdf.text(line, margin, yPosition);
+              yPosition += lineHeight + 2;
+            }
+            yPosition += 12; // Extra spacing for headings
+          } else {
+            // Handle paragraph content with inline formatting
+            const text = formattedText.text;
+            const inlineFormatted = parseInlineFormatting(text);
+            
+            // Process all inline segments as one continuous paragraph
+            let currentLine = "";
+            let currentFontSize = 14;
+            let currentFontStyle = "normal";
+            
+            for (const inline of inlineFormatted) {
+              // Set font style based on inline formatting
+              if (inline.isBold) {
+                currentFontSize = 14;
+                currentFontStyle = "bold";
+              } else if (inline.isItalic) {
+                currentFontSize = 14;
+                currentFontStyle = "italic";
+              } else {
+                currentFontSize = 14;
+                currentFontStyle = "normal";
+              }
+              
+              pdf.setFontSize(currentFontSize);
+              pdf.setFont("helvetica", currentFontStyle);
+              
+              // Split the inline text into words and process each word
+              const words = inline.text.split(" ");
+              
+              for (const word of words) {
+                if (!word) continue;
+                
+                // Test if adding this word would exceed the line width
+                const testLine = currentLine + (currentLine ? " " : "") + word;
+                const testWidth = pdf.getTextWidth(testLine);
+                
+                if (testWidth > contentWidth && currentLine !== "") {
+                  // Current line is full, write it and start a new one
+                  if (yPosition > pageHeight - margin - lineHeight) {
+                    pdf.addPage();
+                    yPosition = margin;
+                  }
+                  pdf.text(currentLine, margin, yPosition);
+                  yPosition += lineHeight + 1;
+                  currentLine = word;
+                } else {
+                  // Add to current line
+                  currentLine = testLine;
+                }
+              }
+            }
+            
+            // Write the last line if there's content
+            if (currentLine) {
+              if (yPosition > pageHeight - margin - lineHeight) {
+                pdf.addPage();
+                yPosition = margin;
+              }
+              pdf.text(currentLine, margin, yPosition);
+              yPosition += lineHeight + 1;
+            }
+            
+            // Add paragraph spacing
+            yPosition += 8;
           }
-          pdf.text(line, margin, yPosition);
-          yPosition += lineHeight + 2;
         }
-        yPosition += paragraphSpacing;
-
-        // Add chapter content
-        pdf.setFontSize(12);
-        pdf.setFont("helvetica", "normal");
-        
-        // Split content into paragraphs and handle each paragraph
-        const paragraphs = chapter.content.split(/\n\s*\n/);
-        
-        for (const paragraph of paragraphs) {
-          if (paragraph.trim() === "") continue;
-          
-          yPosition = addTextWithPageBreak(
-            pdf, 
-            paragraph.trim(), 
-            margin, 
-            yPosition, 
-            contentWidth, 
-            lineHeight, 
-            pageHeight, 
-            margin
-          );
-          
-          yPosition += paragraphSpacing;
-        }
-
-        // Add space between chapters
-        yPosition += 15;
       }
 
       // Save the PDF
@@ -177,11 +339,19 @@ export default function ExportModal({ story, coverImage, children }: ExportModal
 
   //@ts-expect-error - pdf is not typed yet
   const splitTextToSize = (pdf, text: string, maxWidth: number): string[] => {
+    // Handle empty or very short text
+    if (!text || text.length === 0) {
+      return [];
+    }
+
     const words = text.split(" ");
     const lines: string[] = [];
     let currentLine = "";
 
     for (const word of words) {
+      // Skip empty words
+      if (!word) continue;
+      
       const testLine = currentLine + (currentLine ? " " : "") + word;
       const testWidth = pdf.getTextWidth(testLine);
 
@@ -198,23 +368,6 @@ export default function ExportModal({ story, coverImage, children }: ExportModal
     }
 
     return lines;
-  };
-
-  //@ts-expect-error - pdf is not typed yet
-  const addTextWithPageBreak = (pdf, text: string, x: number, y: number, maxWidth: number, lineHeight: number, pageHeight: number, margin: number): number => {
-    const lines = splitTextToSize(pdf, text, maxWidth);
-    let currentY = y;
-
-    for (const line of lines) {
-      if (currentY > pageHeight - margin - lineHeight) {
-        pdf.addPage();
-        currentY = margin;
-      }
-      pdf.text(line, x, currentY);
-      currentY += lineHeight;
-    }
-
-    return currentY;
   };
 
   return (

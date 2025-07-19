@@ -50,6 +50,9 @@ export async function POST(req: NextRequest) {
     - Use playful emphasis where appropriate (like THIS or *that*)
     - Narrator should have a strong, fun personality
     - End with a smooth transition to keep readers engaged
+    - Use markdown formatting for the chapter content
+    - Chapter title should be a first level heading
+    - No other content should be in heading format other than the chapter title.
     
     Write the complete chapter content.`;
 
