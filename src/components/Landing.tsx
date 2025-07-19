@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { BookOpen, Sparkles, Users, Clock, Star, ArrowRight, Check, Wand2, Heart, Zap } from "lucide-react"
+import { BookOpen, Sparkles, Star, ArrowRight, Check, Wand2, Heart, Zap } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
 
@@ -103,7 +103,7 @@ export default function Landing() {
             </h1>
 
             <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto leading-relaxed">
-              Transform your ideas into beautiful, personalized children's stories with our AI-powered platform. Perfect
+              Transform your ideas into beautiful, personalized children&apos;s stories with our AI-powered platform. Perfect
               for parents, teachers, and anyone who loves storytelling.
             </p>
 
@@ -208,7 +208,7 @@ export default function Landing() {
                       <Star key={i} className="h-4 w-4 text-yellow-500 fill-current" />
                     ))}
                   </div>
-                  <p className="text-gray-700 mb-4 italic">"{testimonial.content}"</p>
+                  <p className="text-gray-700 mb-4 italic">&quot;{testimonial.content}&quot;</p>
                   <div>
                     <p className="font-semibold text-gray-900">{testimonial.name}</p>
                     <p className="text-sm text-gray-600">{testimonial.role}</p>
@@ -226,7 +226,7 @@ export default function Landing() {
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">Simple, Transparent Pricing</h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Start free and upgrade when you're ready for unlimited creativity.
+              Start free and upgrade when you&apos;re ready for unlimited creativity.
             </p>
           </div>
 
